@@ -34,7 +34,7 @@ block64 ip_permutation_after_back(block64 in);
 block64 e_bit_selection(block32 in);
 block64 encryption(block64 in, block64 key);
 block64 decryption(block64 encrypted, block64 key);
-void thread_decryption(void *buf);
+block64 thread_decryption(block64);
 block64 thread_encryption(block64);
 void write2file(block64 block);
 void file_decryption();

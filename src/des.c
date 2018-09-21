@@ -806,15 +806,16 @@ void write2file_buffer(block64 block[], size_t blockSize)
     // fclose(fp_out);
 }
 
-void thread_decryption(void *buf)
+block64 thread_decryption(block64 in)
 {
     // block64 out;
-    block64 in = *((block64 *)buf);
+    // block64 in = *((block64 *)buf);
     // out = *in;
     in = decryption(in, key);
     in = decryption(in, key);
     in = decryption(in, key);
-    write2file(in);
+    // write2file(in);
+    return in;
 }
 
 block64 thread_encryption(block64 in)
@@ -840,16 +841,41 @@ void file_decryption()
     // pthread_t *thread = calloc(threads, sizeof(pthread_t));
     buffer.quadword = 0x0;
 
-    while (fread(&buffer, 1, sizeof(buffer), fp) > 0)
+    size_t bufferReaderSize = 502400;
+    block64 bufferReader[bufferReaderSize];
+    block64 bufferWriter[bufferReaderSize];
+
+    size_t sizeArray = sizeof(bufferReader);
+
+    while (fread(&bufferReader, 1, sizeArray, fp) > 0)
     {
         // pthread_create(&(thread[threads - 1]), NULL, (void *)thread_decryption, (void *)&buffer);
         // pthread_join(thread[threads - 1], NULL);
         // threads++;
         // thread = realloc(thread, threads * sizeof(pthread_t));
-        thread_decryption((void *)&buffer);
+        // thread_decryption((void *)&buffer);
+
+#pragma omp parallel for schedule(nonmonotonic \
+                                  : dynamic, 100) num_threads(4)
+
+        for (int i = 0; i < bufferReaderSize; i++)
+        {
+            buffer = bufferReader[i];
+            bufferWriter[i] = thread_decryption(buffer);
+        }
+        write2file_buffer(bufferWriter, sizeArray);
     }
+    fseek(fp, -8L, SEEK_END);
+    if (fread(&buffer, 1, sizeof(buffer), fp) != sizeof(buffer))
+    {
+        fputs("Reading error", stderr);
+    }
+    // read(fp, &buffer, 8);
+
     fclose(fp_out);
     fclose(fp);
+
+    buffer = bufferReader[0];
 
     buffer = decryption(buffer, key);
     buffer = decryption(buffer, key);
